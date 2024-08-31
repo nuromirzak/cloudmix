@@ -33,7 +33,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(a -> a
                         .requestMatchers(
                                 HttpMethod.GET,
-                                "/chat"
+                                "/chat",
+                                "/health"
                         ).permitAll()
                         .requestMatchers(
                                 HttpMethod.POST,

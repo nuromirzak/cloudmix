@@ -1,9 +1,9 @@
 import * as cdk from 'aws-cdk-lib';
-import * as apprunner from 'aws-cdk-lib/aws-apprunner';
 import * as secretsmanager from 'aws-cdk-lib/aws-secretsmanager';
 import * as rds from 'aws-cdk-lib/aws-rds';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
-import * as iam from 'aws-cdk-lib/aws-iam';
+import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as ecs_patterns from 'aws-cdk-lib/aws-ecs-patterns';
 import {Construct} from 'constructs';
 
 export class CloudmixCdkStack extends cdk.Stack {
@@ -57,13 +57,7 @@ export class CloudmixCdkStack extends cdk.Stack {
 			publiclyAccessible: true,
 			securityGroups: [dbSecurityGroup],
 			credentials: rds.Credentials.fromSecret(dbSecret),
-		});
-
-		dbSecret.grantRead(new iam.AccountPrincipal(this.account));
-
-		const vpcConnector = new apprunner.CfnVpcConnector(this, 'VpcConnector', {
-			subnets: vpc.selectSubnets({subnetType: ec2.SubnetType.PUBLIC}).subnetIds,
-			securityGroups: [dbSecurityGroup.securityGroupId],
+			backupRetention: cdk.Duration.days(0),
 		});
 
 		const dbUrl = `jdbc:postgresql://${database.dbInstanceEndpointAddress}:${database.dbInstanceEndpointPort}/cloudmix`;
@@ -73,46 +67,34 @@ export class CloudmixCdkStack extends cdk.Stack {
 		console.log(`DB Username: ${dbUsername}`);
 		console.log(`DB Password: ${dbPassword}`);
 
-		const appRunnerService = new apprunner.CfnService(this, 'AppRunnerService', {
-			sourceConfiguration: {
-				autoDeploymentsEnabled: false,
-				imageRepository: {
-					imageIdentifier: 'public.ecr.aws/l7j1e1p3/cloudmix:latest',
-					imageRepositoryType: 'ECR_PUBLIC',
-					imageConfiguration: {
-						port: '8080',
-						runtimeEnvironmentVariables: [
-							{
-								name: 'DB_URL',
-								value: dbUrl,
-							},
-							{
-								name: 'DB_USERNAME',
-								value: dbUsername,
-							},
-							{
-								name: 'DB_PASSWORD',
-								value: dbPassword,
-							},
-						],
-					},
+		const fargateService = new ecs_patterns.ApplicationLoadBalancedFargateService(this, 'CloudmixFargateService', {
+			vpc,
+			cpu: 512,
+			memoryLimitMiB: 1024,
+			taskImageOptions: {
+				image: ecs.ContainerImage.fromRegistry('public.ecr.aws/l7j1e1p3/cloudmix:latest'),
+				environment: {
+					DB_URL: dbUrl,
+					DB_USERNAME: dbUsername,
+					DB_PASSWORD: dbPassword,
 				},
+				containerPort: 8080,
 			},
-			instanceConfiguration: {
-				cpu: '0.25 vCPU',
-				memory: '1 GB',
-			},
-			networkConfiguration: {
-				egressConfiguration: {
-					egressType: 'VPC',
-					vpcConnectorArn: vpcConnector.attrVpcConnectorArn,
-				},
-			},
+			assignPublicIp: true,
+			publicLoadBalancer: true,
+			desiredCount: 1,
 		});
 
-		new cdk.CfnOutput(this, 'AppRunnerServiceUrl', {
-			value: `https://${appRunnerService.attrServiceUrl}`,
-			description: 'URL of the App Runner service',
+		fargateService.targetGroup.configureHealthCheck({
+			path: '/health',
+			healthyHttpCodes: '200',
+		});
+
+		dbSecurityGroup.connections.allowFrom(fargateService.service, ec2.Port.tcp(5432));
+
+		new cdk.CfnOutput(this, 'FargateServiceUrl', {
+			value: fargateService.loadBalancer.loadBalancerDnsName,
+			description: 'URL of the Fargate service',
 		});
 
 		new cdk.CfnOutput(this, 'DatabaseEndpoint', {
