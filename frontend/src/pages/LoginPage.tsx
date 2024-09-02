@@ -21,6 +21,7 @@ export const LoginPage: React.FC = () => {
         formState: {errors},
     } = useForm<LoginRequest>({
         resolver: zodResolver(LoginRequestSchema),
+        mode: "all",
     });
     const navigate = useNavigate();
     const login = useLogin();
@@ -53,6 +54,7 @@ export const LoginPage: React.FC = () => {
                 placeholder="Password"
                 {...register("password")}
                 error={errors.password?.message}
+                isPassword={true}
             />
             <AuthSubmitButton label="Sign in"/>
             <AuthLink

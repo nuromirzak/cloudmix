@@ -17,13 +17,17 @@ export const RegistrationPage: React.FC = () => {
         formState: {errors},
     } = useForm<RegistrationRequest>({
         resolver: zodResolver(RegistrationRequestSchema),
+        mode: "all",
     });
     const navigate = useNavigate();
     const registerMutation = useRegister();
 
     const onSubmit = async (data: RegistrationRequest) => {
         try {
-            await registerMutation.mutateAsync(data);
+            await registerMutation.mutateAsync({
+                password: data.password,
+                username: data.username,
+            });
             enqueueSnackbar("Registration successful", {variant: "success"});
             navigate("/login");
         } catch (error) {
@@ -48,6 +52,15 @@ export const RegistrationPage: React.FC = () => {
                 placeholder="Password"
                 {...register("password")}
                 error={errors.password?.message}
+                isPassword
+            />
+            <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="Confirm Password"
+                {...register("confirmPassword")}
+                error={errors.confirmPassword?.message}
+                isPassword
             />
             <AuthSubmitButton label="Sign up"/>
             <AuthLink

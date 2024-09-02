@@ -22,30 +22,10 @@ public class Validator {
     }
 
     private static void validatePassword(String password) {
-        final int minLength = 8;
+        final int minLength = 6;
         if (password == null || password.length() < minLength) {
             String message = "Password must be at least " + minLength + " characters long";
             throw new ValidationException(message);
-        }
-
-        boolean hasLetter = false;
-        boolean hasDigit = false;
-
-        for (char ch : password.toCharArray()) {
-            if (Character.isLetter(ch)) {
-                hasLetter = true;
-            }
-            if (Character.isDigit(ch)) {
-                hasDigit = true;
-            }
-        }
-
-        if (!hasLetter) {
-            throw new ValidationException("Password must contain at least one letter");
-        }
-
-        if (!hasDigit) {
-            throw new ValidationException("Password must contain at least one digit");
         }
     }
 

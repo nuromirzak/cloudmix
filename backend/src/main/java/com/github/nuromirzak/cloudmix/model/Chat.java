@@ -39,6 +39,6 @@ public class Chat {
     private Set<User> participants = new HashSet<>();
 
     @OneToMany(mappedBy = "chat", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    @OrderBy("sentAt ASC")
+    @OrderBy("id ASC")
     private Set<Message> messages = new HashSet<>();
 }

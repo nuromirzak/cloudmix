@@ -2,6 +2,8 @@ package com.github.nuromirzak.cloudmix.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -13,7 +15,6 @@ import lombok.Setter;
 import lombok.ToString;
 
 import java.time.Instant;
-import java.util.UUID;
 
 @Entity
 @Table
@@ -24,10 +25,11 @@ import java.util.UUID;
 @ToString
 public class Message {
     @Id
-    @Column(updatable = false, nullable = false)
-    private UUID id = UUID.randomUUID();
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column
+    private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
 
     @Column(nullable = false)
@@ -41,4 +43,10 @@ public class Message {
     @ManyToOne
     @JoinColumn(nullable = false)
     private User sender;
+
+    public Message(String content, Chat chat, User sender) {
+        this.content = content;
+        this.chat = chat;
+        this.sender = sender;
+    }
 }

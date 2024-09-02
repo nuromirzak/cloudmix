@@ -1,4 +1,4 @@
-import {PaperAirplaneIcon} from "@heroicons/react/24/solid";
+import {CpuChipIcon, PaperAirplaneIcon} from "@heroicons/react/24/solid";
 import {format, isToday, isYesterday} from "date-fns";
 import {SubBar} from "./SubBar.tsx";
 import {useForm} from "react-hook-form";
@@ -6,8 +6,9 @@ import {useChatStore} from "../store/chatStore.ts";
 import {useAuthStore} from "../store/authStore.ts";
 import {WebSocketHook} from "../hooks/useWebSocket.tsx";
 import {clsx} from "clsx";
-import {useEffect, useMemo, useRef, useState} from "react";
+import {useEffect, useMemo, useRef} from "react";
 import {ArrowLeftIcon} from "@heroicons/react/16/solid";
+import {UserAvatar} from "./UserAvatar.tsx";
 
 const formatMessageDate = (date: Date) => {
     if (isToday(date)) {
@@ -51,7 +52,6 @@ export function ChatComponent({sendMessage, onBackClick}: ChatComponentProps) {
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
-    const [isUserScrolling, setIsUserScrolling] = useState(false);
 
     const currentChat = useMemo(() => {
         return activeChatId ? chats.find((chat) => {
@@ -69,18 +69,8 @@ export function ChatComponent({sendMessage, onBackClick}: ChatComponentProps) {
     const currentStatus = sender ? statuses[sender.id] : null;
 
     useEffect(() => {
-        if (!isUserScrolling) {
             messagesEndRef.current?.scrollIntoView({behavior: "instant"});
-        }
-    }, [currentMessages, isUserScrolling]);
-
-    const handleScroll = () => {
-        if (scrollContainerRef.current) {
-            const {scrollTop, scrollHeight, clientHeight} = scrollContainerRef.current;
-            const isAtBottom = scrollHeight - scrollTop === clientHeight;
-            setIsUserScrolling(!isAtBottom);
-        }
-    };
+    }, [currentMessages]);
 
     const groupedMessages = currentMessages.reduce((groups, message) => {
         const date = formatMessageDate(new Date(message.sentAt));
@@ -102,7 +92,6 @@ export function ChatComponent({sendMessage, onBackClick}: ChatComponentProps) {
             content: data.message,
         });
         reset();
-        setIsUserScrolling(false);
     };
 
     const handleFocus = () => {
@@ -135,27 +124,30 @@ export function ChatComponent({sendMessage, onBackClick}: ChatComponentProps) {
                     >
                         <ArrowLeftIcon className="h-6 w-6"/>
                     </button>
-                    <div className={clsx(
-                        "w-10 h-10 bg-purple-500 rounded-full flex items-center justify-center text-white font-semibold",
-                        {hidden: !sender},
-                    )}>
-                        {sender?.username.charAt(0).toUpperCase()}
-                    </div>
+                    {sender && <UserAvatar user={sender}/>}
                     <div>
-                        <h2 className="text-lg font-semibold">{sender ? sender.username : "Select a chat"}</h2>
-                        <p className={clsx(
+                        <h2 className="text-lg font-semibold">
+                            {sender ? sender.username : "Select a chat"}
+                        </h2>
+                        <div className={clsx(
                             "text-sm",
                             currentStatus?.chatId ? "text-green-500" : currentStatus ? "text-blue-500" : "text-gray-500",
                         )}>
-                            {currentChat ? (currentStatus ? (currentStatus.chatId ? "Typing..." : "Online") : "Offline") : ""}
-                        </p>
+                            {sender?.role === "BOT" && (
+                                <div
+                                    className="bg-blue-100 text-blue-800 text-xs font-medium px-2.5 py-0.5 rounded-full flex items-center">
+                                    <CpuChipIcon className="w-3 h-3 mr-1"/>
+                                    Bot
+                                </div>
+                            )}
+                            {sender?.role !== "BOT" && currentChat ? (currentStatus ? (currentStatus.chatId ? "Typing..." : "Online") : "Offline") : ""}
+                        </div>
                     </div>
                 </div>
             </SubBar>
             <div
                 ref={scrollContainerRef}
                 className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-2 sm:space-y-4 scrollbar-hide"
-                onScroll={handleScroll}
             >
                 {Object.entries(groupedMessages).map(([date, messages]) => {
                     return (
@@ -171,11 +163,11 @@ export function ChatComponent({sendMessage, onBackClick}: ChatComponentProps) {
                                     <div key={message.id}
                                          className={clsx("flex mb-2", isSelf ? "justify-end" : "justify-start")}>
                                         <div className={clsx(
-                                            "max-w-[80%] rounded-lg p-3 shadow-md",
+                                            "max-w-[80%] rounded-lg p-3 shadow-md break-all",
                                             isSelf ? "bg-purple-500 text-white" : "bg-white",
                                         )}>
                                             <div className="flex flex-col">
-                                                <p className="select-text text-base mb-1">{message.content}</p>
+                                                <p className="select-text text-base mb-1 whitespace-pre-wrap break-words">{message.content}</p>
                                                 <span className={clsx(
                                                     "text-xs self-end",
                                                     isSelf ? "text-purple-200" : "text-gray-400",

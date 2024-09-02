@@ -6,9 +6,13 @@ export const CustomErrorResponseSchema = z.object({
 });
 export type CustomErrorResponse = z.infer<typeof CustomErrorResponseSchema>;
 
+export const RoleSchema = z.enum(["USER", "BOT"]);
+export type Role = z.infer<typeof RoleSchema>;
+
 export const UserResponseSchema = z.object({
     id: z.string(),
     username: z.string(),
+    role: RoleSchema,
 });
 export type UserResponse = z.infer<typeof UserResponseSchema>;
 

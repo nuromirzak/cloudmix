@@ -2,6 +2,8 @@ package com.github.nuromirzak.cloudmix.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -35,6 +37,10 @@ public class User implements UserDetails {
     private String username;
 
     @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    private Role role;
+
+    @Column(nullable = false)
     @ToString.Exclude
     private String passwordHash;
 
@@ -58,5 +64,9 @@ public class User implements UserDetails {
     @Override
     public int hashCode() {
         return Objects.hash(getUsername());
+    }
+
+    public enum Role {
+        USER, BOT,
     }
 }

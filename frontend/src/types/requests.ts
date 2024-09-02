@@ -9,8 +9,14 @@ export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 export const RegistrationRequestSchema = z.object({
     username: z.string().min(3, "Username must be at least 3 characters long"),
     password: z.string()
-        .min(8, "Password must be at least 8 characters long")
-        .regex(/[A-Za-z]/, "Password must contain at least one letter")
-        .regex(/[0-9]/, "Password must contain at least one digit"),
+        // .regex(/[A-Za-z]/, "Password must contain at least one letter")
+        // .regex(/[0-9]/, "Password must contain at least one digit")
+        .min(6, "Password must be at least 6 characters long"),
+    confirmPassword: z.string(),
+}).refine((data) => {
+    return data.password === data.confirmPassword;
+}, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
 });
 export type RegistrationRequest = z.infer<typeof RegistrationRequestSchema>;

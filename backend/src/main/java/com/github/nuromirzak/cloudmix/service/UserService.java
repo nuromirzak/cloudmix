@@ -43,6 +43,7 @@ public class UserService {
         User user = new User();
         user.setUsername(username);
         user.setPasswordHash(passwordEncoder.encode(rawPassword));
+        user.setRole(User.Role.USER);
         user = userRepository.save(user);
         createChats(user);
     }
@@ -70,6 +71,6 @@ public class UserService {
             throw new BadCredentialsException("Invalid credentials");
         }
         User user = (User) authentication.getPrincipal();
-        return new UserResponse(user.getId().toString(), user.getUsername());
+        return new UserResponse(user);
     }
 }

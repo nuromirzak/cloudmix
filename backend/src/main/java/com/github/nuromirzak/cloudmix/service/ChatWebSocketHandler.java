@@ -5,8 +5,15 @@ import com.github.nuromirzak.cloudmix.dto.response.ChatResponse;
 import com.github.nuromirzak.cloudmix.dto.response.MessageResponse;
 import com.github.nuromirzak.cloudmix.dto.response.Status;
 import com.github.nuromirzak.cloudmix.dto.response.UserResponse;
-import com.github.nuromirzak.cloudmix.dto.websocket.client.*;
-import com.github.nuromirzak.cloudmix.dto.websocket.server.*;
+import com.github.nuromirzak.cloudmix.dto.websocket.client.AuthMessage;
+import com.github.nuromirzak.cloudmix.dto.websocket.client.ClientMessage;
+import com.github.nuromirzak.cloudmix.dto.websocket.client.SendMessageMessage;
+import com.github.nuromirzak.cloudmix.dto.websocket.client.TypingStatusMessage;
+import com.github.nuromirzak.cloudmix.dto.websocket.server.AllChatsMessage;
+import com.github.nuromirzak.cloudmix.dto.websocket.server.AllStatusesMessage;
+import com.github.nuromirzak.cloudmix.dto.websocket.server.ErrorMessage;
+import com.github.nuromirzak.cloudmix.dto.websocket.server.NewMessageMessage;
+import com.github.nuromirzak.cloudmix.dto.websocket.server.ServerMessage;
 import com.github.nuromirzak.cloudmix.model.Chat;
 import com.github.nuromirzak.cloudmix.model.Message;
 import com.github.nuromirzak.cloudmix.model.User;
@@ -15,6 +22,10 @@ import com.github.nuromirzak.cloudmix.repository.MessageRepository;
 import com.github.nuromirzak.cloudmix.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.messages.AssistantMessage;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -29,6 +40,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -43,6 +55,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     private final ChatRepository chatRepository;
     private final UserRepository userRepository;
     private final AuthenticationProvider authenticationProvider;
+    private final OpenAiChatModel openAiChatModel;
 
     private final Map<WebSocketSession, User> sessionToUser = new ConcurrentHashMap<>();
     private final Map<User, WebSocketSession> userToSession = new ConcurrentHashMap<>();
@@ -80,7 +93,13 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     public void afterConnectionClosed(@NonNull WebSocketSession session, @NonNull CloseStatus status) {
         User user = sessionToUser.remove(session);
         if (user != null) {
-            userToSession.remove(user);
+            try (WebSocketSession userSession = userToSession.remove(user)) {
+                if (userSession != null && userSession.isOpen()) {
+                    userSession.close(CloseStatus.POLICY_VIOLATION.withReason("Another session opened"));
+                }
+            } catch (IOException e) {
+                log.error("Error closing user session", e);
+            }
             userStatuses.remove(user);
             broadcastStatusUpdate();
         }
@@ -132,25 +151,50 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             Chat chat = chatRepository.findById(chatId)
                     .orElseThrow(() -> new IllegalArgumentException("Chat not found"));
 
-            Message messageToSend = new Message();
-            messageToSend.setChat(chat);
-            messageToSend.setContent(message.getContent());
-            messageToSend.setSender(sender);
+            Message messageToSend = new Message(message.getContent(), chat, sender);
+            messageToSend = messageRepository.save(messageToSend);
 
-            messageRepository.save(messageToSend);
+            broadcastMessage(chat, messageToSend);
 
-            MessageResponse messageResponse = new MessageResponse(messageToSend);
-            NewMessageMessage newMessageMessage = new NewMessageMessage(chat.getId().toString(), messageResponse);
-            chat.getParticipants().forEach(participant -> {
-                WebSocketSession participantSession = userToSession.get(participant);
-                if (participantSession != null && participantSession.isOpen()) {
-                    sendToSession(participantSession, newMessageMessage);
-                }
-            });
+            User otherParticipant = chat.getParticipants().stream()
+                    .filter(user -> !user.equals(sender))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Other participant not found"));
+
+            if (otherParticipant.getRole().equals(User.Role.BOT)) {
+                String response = getResponseFromOpenAi(chatId);
+
+                Message aiMessage = new Message(response, chat, otherParticipant);
+                aiMessage = messageRepository.save(aiMessage);
+
+                broadcastMessage(chat, aiMessage);
+            }
         } catch (Exception e) {
             log.error("Error sending message", e);
             sendError(session, "Failed to send message");
         }
+    }
+
+    private String getResponseFromOpenAi(Long chatId) {
+        List<Message> latest10Messages = messageRepository.findAllByChatId(chatId)
+                .stream()
+                .sorted(Comparator.comparing(Message::getId).reversed())
+                .limit(10)
+                .sorted(Comparator.comparing(Message::getId))
+                .toList();
+        List<org.springframework.ai.chat.messages.Message> messages = new ArrayList<>();
+        for (Message m : latest10Messages) {
+            User author = m.getSender();
+            org.springframework.ai.chat.messages.Message message1;
+            if (author.getRole().equals(User.Role.BOT)) {
+                message1 = new AssistantMessage(m.getContent());
+            } else {
+                message1 = new UserMessage(m.getContent());
+            }
+            messages.add(message1);
+        }
+        org.springframework.ai.chat.model.ChatResponse responses = openAiChatModel.call(new Prompt(messages));
+        return responses.getResults().getLast().getOutput().getContent();
     }
 
     private void sendAllChats(WebSocketSession session) {
@@ -187,6 +231,17 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     private void sendError(WebSocketSession session, String message) {
         ErrorMessage errorMessage = new ErrorMessage(message);
         sendToSession(session, errorMessage);
+    }
+
+    private void broadcastMessage(Chat chat, Message message) {
+        MessageResponse messageResponse = new MessageResponse(message);
+        NewMessageMessage newMessageMessage = new NewMessageMessage(chat.getId().toString(), messageResponse);
+        chat.getParticipants().forEach(participant -> {
+            WebSocketSession participantSession = userToSession.get(participant);
+            if (participantSession != null && participantSession.isOpen()) {
+                sendToSession(participantSession, newMessageMessage);
+            }
+        });
     }
 
     private void broadcastStatusUpdate() {
