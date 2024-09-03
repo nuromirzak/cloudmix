@@ -9,6 +9,7 @@ import {LoginRequest, LoginRequestSchema} from "../types";
 import {AuthFormContainer, AuthHeader, AuthLink, AuthSubmitButton} from "../components/SharedAuthComponents";
 import {Input} from "../components/Input.tsx";
 import {useNavigate} from "react-router-dom";
+import {LoadingBackdrop} from "../components/LoadingBackdrop.tsx";
 
 export const LoginPage: React.FC = () => {
     const setUser = useAuthStore((state) => {
@@ -24,11 +25,14 @@ export const LoginPage: React.FC = () => {
         mode: "all",
     });
     const navigate = useNavigate();
-    const login = useLogin();
+    const {
+        mutateAsync: loginAsync,
+        isPending,
+    } = useLogin();
 
     const onSubmit = async (data: LoginRequest) => {
         try {
-            const response = await login.mutateAsync(data);
+            const response = await loginAsync(data);
             enqueueSnackbar("Login successful", {variant: "success"});
             setUser({...response, password: data.password});
             navigate("/");
@@ -56,12 +60,13 @@ export const LoginPage: React.FC = () => {
                 error={errors.password?.message}
                 isPassword={true}
             />
-            <AuthSubmitButton label="Sign in"/>
+            <AuthSubmitButton label="Sign in" disabled={isPending}/>
             <AuthLink
                 text="Don't have an account yet?"
                 linkText="Sign up"
                 to="/register"
             />
+            {isPending && <LoadingBackdrop/>}
         </AuthFormContainer>
     );
 };

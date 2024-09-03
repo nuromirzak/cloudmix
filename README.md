@@ -173,7 +173,7 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 [issues-shield]: https://img.shields.io/github/issues/nuromirzak/cloudmix.svg?style=for-the-badge
 [issues-url]: https://github.com/nuromirzak/cloudmix/issues
 [license-shield]: https://img.shields.io/github/license/nuromirzak/cloudmix.svg?style=for-the-badge
-[license-url]: https://github.com/nuromirzak/cloudmix/blob/master/LICENSE.txt
+[license-url]: https://github.com/nuromirzak/cloudmix/blob/main/LICENSE.txt
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://linkedin.com/in/nurmukhammed
 [product-screenshot]: https://github.com/user-attachments/assets/48121963-7c64-4a72-8310-2c484c34c5b1

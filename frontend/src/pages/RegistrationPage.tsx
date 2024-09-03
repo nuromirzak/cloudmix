@@ -8,6 +8,7 @@ import {RegistrationRequest, RegistrationRequestSchema} from "../types";
 import {AuthFormContainer, AuthHeader, AuthLink, AuthSubmitButton} from "../components/SharedAuthComponents";
 import {Input} from "../components/Input.tsx";
 import {useNavigate} from "react-router-dom";
+import {LoadingBackdrop} from "../components/LoadingBackdrop.tsx";
 
 export const RegistrationPage: React.FC = () => {
     const {enqueueSnackbar} = useSnackbar();
@@ -20,11 +21,14 @@ export const RegistrationPage: React.FC = () => {
         mode: "all",
     });
     const navigate = useNavigate();
-    const registerMutation = useRegister();
+    const {
+        mutateAsync: registerAsync,
+        isPending,
+    } = useRegister();
 
     const onSubmit = async (data: RegistrationRequest) => {
         try {
-            await registerMutation.mutateAsync({
+            await registerAsync({
                 password: data.password,
                 username: data.username,
             });
@@ -62,12 +66,13 @@ export const RegistrationPage: React.FC = () => {
                 error={errors.confirmPassword?.message}
                 isPassword
             />
-            <AuthSubmitButton label="Sign up"/>
+            <AuthSubmitButton label="Sign up" disabled={isPending}/>
             <AuthLink
                 text="Already have an account?"
                 linkText="Sign in"
                 to="/login"
             />
+            {isPending && <LoadingBackdrop/>}
         </AuthFormContainer>
     );
 };
