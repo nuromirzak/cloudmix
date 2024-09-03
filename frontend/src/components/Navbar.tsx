@@ -13,7 +13,8 @@ export const Navbar: React.FC = () => {
     };
 
     return (
-        <nav className="bg-white border-b border-gray-200 px-4 py-2 flex justify-between items-center">
+        <nav className="bg-white border-b border-gray-200 px-4 py-2 flex justify-between items-center"
+             data-testid="navbar">
             <div className="flex items-center">
                 <CloudIcon className="h-8 w-8 text-purple-500"/>
                 <span className="ml-2 text-xl font-semibold">CloudMix</span>

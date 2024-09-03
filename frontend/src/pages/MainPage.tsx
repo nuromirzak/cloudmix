@@ -49,12 +49,14 @@ export function MainPage() {
         <div className="h-dvh flex flex-col select-none">
             <Navbar/>
             <div className="flex-1 flex overflow-hidden">
-                <div className={`w-full md:w-1/4 ${screen === "sidebar" ? "block" : "hidden md:block"}`}>
+                <div className={`w-full md:w-1/4 ${screen === "sidebar" ? "block" : "hidden md:block"}`}
+                     data-testid="messages-sidebar-container">
                     <MessagesSidebar onChatSelect={() => {
                         return setScreen("chat");
                     }}/>
                 </div>
-                <div className={`flex-1 border-l border-gray-200 ${screen === "chat" ? "block" : "hidden md:block"}`}>
+                <div className={`flex-1 border-l border-gray-200 ${screen === "chat" ? "block" : "hidden md:block"}`}
+                     data-testid="chat-component-container">
                     <ChatComponent sendMessage={sendMessage} onBackClick={handleBackToSidebar}/>
                 </div>
             </div>

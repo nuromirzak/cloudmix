@@ -121,6 +121,7 @@ export function ChatComponent({sendMessage, onBackClick}: ChatComponentProps) {
                     <button
                         onClick={onBackClick}
                         className="md:hidden text-purple-600 hover:text-purple-800 transition-colors duration-200"
+                        aria-label="Back"
                     >
                         <ArrowLeftIcon className="h-6 w-6"/>
                     </button>
@@ -199,6 +200,7 @@ export function ChatComponent({sendMessage, onBackClick}: ChatComponentProps) {
                         type="submit"
                         disabled={!activeChatId}
                         className="bg-purple-500 text-white rounded-r-full p-2 hover:bg-purple-600 focus:outline-none focus:ring-2 focus:ring-purple-500 transition duration-300 ease-in-out"
+                        aria-label="Send message"
                     >
                         <PaperAirplaneIcon className="h-6 w-6"/>
                     </button>
